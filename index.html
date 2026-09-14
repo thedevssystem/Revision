@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake: Side-Window Edition</title>
+    <style>
+        body {
+            margin: 0;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .controls-panel {
+            margin-bottom: 15px;
+            text-align: center;
+            z-index: 10;
+        }
+        button {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.active {
+            background: #ff5722;
+        }
+        button.active:hover {
+            background: #e64a19;
+        }
+        .canvas-container {
+            width: 100%;
+            position: relative; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: max-width 0.3s ease;
+        }
+        .canvas-container.normal {
+            max-width: 360px; 
+        }
+        .canvas-container.compact {
+            max-width: 234px; 
+        }
+        canvas {
+            background: #111;
+            border: 3px solid #4CAF50;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        #scoreBoard {
+            font-size: 18px;
+            margin-top: 8px;
+            font-weight: bold;
+        }
+        /* Full-screen image overlay styling */
+        #fullScreenCover {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            z-index: 9999;
+        }
+        #fullScreenCover img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        /* Interactive Menu Overlay for the Start screen */
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(17, 17, 17, 0.95);
+            border: 3px solid #4CAF50;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            text-align: center;
+            padding: 20px;
+        }
+        #startScreen h1 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+            font-size: 28px;
+        }
+        .controls-list {
+            font-size: 13px;
+            color: #bbb;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        #startBtn {
+            font-size: 18px;
+            padding: 12px 30px;
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+        }
+        /* Admin Command Bar overlay styling at the bottom */
+        #adminPanel {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(20, 20, 20, 0.95);
+            border-top: 2px solid #ff9800;
+            padding: 12px;
+            box-sizing: border-box;
+            z-index: 10000;
+            font-family: monospace;
+        }
+        .command-help {
+            font-size: 12px;
+            color: #ffa726;
+            margin-bottom: 6px;
+        }
+        #cmdInput {
+            width: 100%;
+            background: #000;
+            border: 1px solid #ff9800;
+            color: #00ff00;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        /* Secret Fullscreen Hollywood Hacker Console layout */
+        #hollywoodOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #050505;
+            z-index: 99999; /* Higher than everything */
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+            color: #00ff33;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+        .matrix-column {
+            position: absolute;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Full screen container for the M key image -->
+    <div id="fullScreenCover">
+        <img src="coverimage.png" alt="Cover Image">
+    </div>
+
+    <!-- Hidden Admin Terminal Interface Box (Kept completely secret from users) -->
+    <div id="adminPanel">
+        <div class="command-help">
+            <strong>Available Commands:</strong> /points [number] | /colour [color_name or rainbow]
+        </div>
+        <input type="text" id="cmdInput" placeholder="Type a command and press Enter..." autocomplete="off">
+    </div>
+
+    <!-- Top Secret Hollywood Shell simulation stream overlay box -->
+    <div id="hollywoodOverlay" id="hackerStream"></div>
+
+    <div class="controls-panel">
+        <button id="modeToggle">Toggle Compact Mode</button>
+        <div id="scoreBoard">Score: 0</div>
+    </div>
+
+    <div id="container" class="canvas-container normal">
+        <div id="startScreen">
+            <h1>SNAKE GAME</h1>
+            <div class="controls-list">
+                <strong>Arrow Keys</strong>: Move Snake<br>
+                <strong>P Key</strong>: Pause Game<br>
+                <strong>M Key</strong>: Hide Screen View<br>
+                <strong>T Key</strong>: Open Admin Panel
+            </div>
+            <button id="startBtn">START</button>
+        </div>
+        <canvas id="gameCanvas" width="360" height="360"></canvas>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('container');
+        const modeToggle = document.getElementById('modeToggle');
+        const scoreBoard = document.getElementById('scoreBoard');
+        const fullScreenCover = document.getElementById('fullScreenCover');
+        const startScreen = document.getElementById('startScreen');
+        const startBtn = document.getElementById('startBtn');
+        const adminPanel = document.getElementById('adminPanel');
+        const cmdInput = document.getElementById('cmdInput');
+        const hollywoodOverlay = document.getElementById('hollywoodOverlay');
+
+        // Perfect 15x15 Grid Layout Configuration
+        const tileCount = 15;
+        const gridSize = canvas.width / tileCount; 
+        
+        let snake = [];
+        let food = {x: 4, y: 7};
+        
+        let dx = 1; 
+        let dy = 0;
+        let nextDx = 1;
+        let nextDy = 0;
+        
+        let currentX = 7;
+        let currentY = 7;
+        let moveProgress = 0; 
+
+        let score = 0;
+        let isGameOver = false;
+        let isCompactMode = false;
+
+        // Toggle flags for pausing mechanics
+        let isPaused = false;
+        let showCoverImage = false;
+        let gameHasStarted = false; 
+        
+        // Admin system tracking data
+        let isAdminActive = false;
+        let snakeColorMode = 'normal'; 
+        let rainbowHue = 0; 
+
+        // Hidden Hollywood Hacker Mode variables
+        let isHollywoodMode = false;
+        let hollywoodIntervals = [];
+
+        const speedFactor = 5.0; 
+
+        function initGame() {
+            snake = [
+                {x: 7, y: 7},
+                {x: 6, y: 7},
+                {x: 5, y: 7}
+            ];
+            currentX = 7;
+            currentY = 7;
+            moveProgress = 0;
+            dx = 1; dy = 0;
+            nextDx = 1; nextDy = 0;
+            score = 0;
+            isGameOver = false;
+            isPaused = false;
+            showCoverImage = false;
+            isAdminActive = false;
+            adminPanel.style.display = 'none';
+            fullScreenCover.style.display = 'none';
+            stopHollywood();
+            scoreBoard.innerText = "Score: " + score;
+            spawnFood();
+        }
+
+        startBtn.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            gameHasStarted = true;
+            initGame();
+        });
+
+        // Event listener to catch your input commands on Enter keypress
+        cmdInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                let input = cmdInput.value.trim().toLowerCase();
+                let args = input.split(' ');
+                
+                if (args[0] === '/points' && args[1] !== undefined) {
+                    let newPoints = parseInt(args[1]);
+                    if (!isNaN(newPoints)) {
+                        score = newPoints;
+                        scoreBoard.innerText = "Score: " + score;
+                    }
+                } else if (args[0] === '/colour' && args[1] !== undefined) {
+                    if (args[1] === 'rainbow') {
+                        snakeColorMode = 'rainbow';
+                    } else {
+                        snakeColorMode = args[1]; 
+                    }
+                } else if (args[0] === '/hollywood') {
+                    // Start the hidden hacker screen display overlay sequence
+                    startHollywood();
+                }
+                
+                // Close down console box automatically after submission
+                isAdminActive = false;
+                adminPanel.style.display = 'none';
+                cmdInput.blur();
+            }
+        });
+
+        window.addEventListener('keydown', e => {
+            // Escape key breaks out of Hollywood mode instantly
+            if (e.key === 'Escape' && isHollywoodMode) {
+                stopHollywood();
+                return;
+            }
+
+            // Drop normal commands if typing inside the admin input element
+            if (document.activeElement === cmdInput) {
+                if (e.key === 'Escape') {
+                    isAdminActive = false;
+                    adminPanel.style.display = 'none';
+                    cmdInput.blur();
+                }
+                return;
+            }
+
+            if (!gameHasStarted || isHollywoodMode) return;
+
+            // T Key - Admin terminal toggling
+            if (e.key.toLowerCase() === 't') {
+                e.preventDefault();
+                isAdminActive = !isAdminActive;
+                if (isAdminActive) {
+                    adminPanel.style.display = 'block';
+                    cmdInput.focus();
+                    cmdInput.value = ''; 
+                } else {
+                    adminPanel.style.display = 'none';
+                    cmdInput.blur();
+                }
+                return;
+            }
+
+            // P Key - Standard Pause Menu toggle
+            if (e.key.toLowerCase() === 'p') {
+                if (!showCoverImage && !isGameOver && !isAdminActive) {
+                    isPaused = !isPaused;
+                }
+                return;
+            }
+
+            // M Key - Custom Image View pause toggle
+            if (e.key.toLowerCase() === 'm') {
+                if (!isGameOver && !isAdminActive) {
+                    showCoverImage = !showCoverImage;
+                    isPaused = showCoverImage; 
+                    fullScreenCover.style.display = showCoverImage ? 'block' : 'none';
+                }
+                return;
+            }
+
+            // Game movement inputs (only allowed if game is completely active)
+            if (!isPaused && !showCoverImage && !isAdminActive) {
+                switch(e.key) {
+                    case 'ArrowUp':
+                        if (dy !== 1) { nextDx = 0; nextDy = -1; }
+                        break;
+                    case 'ArrowDown':
+                        if (dy !== -1) { nextDx = 0; nextDy = 1; }
+                        break;
+                    case 'ArrowLeft':
+                        if (dx !== 1) { nextDx = -1; nextDy = 0; }
+                        break;
+                    case 'ArrowRight':
+                        if (dx !== -1) { nextDx = 1; nextDy = 0; }
+                        break;
+                }
+            }
+
+            if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+                if(isGameOver) initGame();
+            }
+        });
+        modeToggle.addEventListener('click', () => {
+            isCompactMode = !isCompactMode;
+            if (isCompactMode) {
+                modeToggle.classList.add('active');
+                modeToggle.innerText = "Compact Mode: ON";
+                container.className = "canvas-container compact";
+            } else {
+                modeToggle.classList.remove('active');
+                modeToggle.innerText = "Toggle Compact Mode";
+                container.className = "canvas-container normal";
+            }
+        });
+
+        function spawnFood() {
+            food.x = Math.floor(Math.random() * tileCount);
+            food.y = Math.floor(Math.random() * tileCount);
+            
+            for (let part of snake) {
+                if (part.x === food.x && part.y === food.y) {
+                    spawnFood();
+                    break;
+                }
+            }
+        }
+
+        // Secret Movie Hacker Logic Simulation Engine
+        function startHollywood() {
+            isHollywoodMode = true;
+            hollywoodOverlay.style.display = 'block';
+            hollywoodOverlay.innerHTML = ''; // Clear older screens
+
+            const columnsCount = Math.floor(window.innerWidth / 300) || 1;
+            const widthPct = 100 / columnsCount;
+
+            const fakeScripts = [
+                () => `[${new Date().toLocaleTimeString()}] INITIATING TCP/IP HANDSHAKE BYPASS... \n[STATUS] ACCESS GRANTED TO NODE_${Math.floor(Math.random()*9000+1000)}\n`,
+                () => `root@kernel:~# apt-get download coreutils-sys-bin\nUnpacking objects: ${Math.floor(Math.random()*100)}% (${Math.floor(Math.random()*500)}/512 pairs)\n`,
+                () => `wget -qO- https://github.com\nHTTP/1.1 200 OK\nContent-Type: application/json\n`,
+                () => `0x${Math.floor(Math.random()*16777215).toString(16).toUpperCase()} -> CONNECTED TO COMPILER GATEWAY BUFFER_OVERFLOW_SAFE\n`,
+                () => `inject --payload=stack_pivot --target=0x7FFF${Math.floor(Math.random()*900+100)}\n[WARNING] MEMORY ADDRESS ALIGNMENT STABLE\n`
+            ];
+
+            // Build dynamic text column targets
+            for (let i = 0; i < columnsCount; i++) {
+                let col = document.createElement('div');
+                col.className = 'matrix-column';
+                col.style.left = (i * widthPct) + '%';
+                col.style.width = (widthPct - 2) + '%';
+                col.style.top = '10px';
+                hollywoodOverlay.appendChild(col);
+
+                let interval = setInterval(() => {
+                    let randomLine = fakeScripts[Math.floor(Math.random() * fakeScripts.length)]();
+                    col.innerHTML += randomLine;
+                    
+                    // Keep text layout moving upward when it overflows height dimensions
+                    if (col.offsetHeight > window.innerHeight - 50) {
+                        col.innerHTML = col.innerHTML.substring(randomLine.length * 2);
+                    }
+                }, Math.floor(Math.random() * 200 + 150));
+
+                hollywoodIntervals.push(interval);
+            }
+        }
+
+        function stopHollywood() {
+            isHollywoodMode = false;
+            hollywoodOverlay.style.display = 'none';
+            hollywoodIntervals.forEach(clearInterval);
+            hollywoodIntervals = [];
+        }
+
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            let dt = (timestamp - lastTime) / 1000; 
+            lastTime = timestamp;
+
+            if (gameHasStarted && !isGameOver && !isPaused && !showCoverImage && !isAdminActive && !isHollywoodMode) {
+                update(dt);
+            }
+            draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update(dt) {
+            moveProgress += dt * speedFactor;
+
+            if (moveProgress >= 1.0) {
+                moveProgress -= 1.0;
+                
+                dx = nextDx;
+                dy = nextDy;
+
+                currentX += dx;
+                currentY += dy;
+
+                if (currentX < 0 || currentX >= tileCount || currentY < 0 || currentY >= tileCount) {
+                    isGameOver = true;
+                    return;
+                }
+
+                for (let i = 0; i < snake.length; i++) {
+                    if (snake[i].x === currentX && snake[i].y === currentY) {
+                        isGameOver = true;
+                        return;
+                    }
+                }
+
+                snake.unshift({x: currentX, y: currentY});
+
+                if (currentX === food.x && currentY === food.y) {
+                    score += 10;
+                    scoreBoard.innerText = "Score: " + score;
+                    spawnFood();
+                } else {
+                    snake.pop();
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+
+            if (gameHasStarted) {
+                ctx.fillStyle = '#ff5722';
+                ctx.fillRect(food.x * gridSize + 2, food.y * gridSize + 2, gridSize - 4, gridSize - 4);
+
+                if (snakeColorMode === 'rainbow') {
+                    rainbowHue = (rainbowHue + 2) % 360;
+                }
+
+                snake.forEach((part, index) => {
+                    let renderX = part.x;
+                    let renderY = part.y;
+
+                    if (!isGameOver && !isPaused && !isAdminActive && !isHollywoodMode) {
+                        if (index === 0) {
+                            renderX = (part.x - dx) + (dx * moveProgress);
+                            renderY = (part.y - dy) + (dy * moveProgress);
+                        } else {
+                            let prevPart = snake[index - 1];
+                            renderX = prevPart.x + (part.x - prevPart.x) * (1 - moveProgress);
+                            renderY = prevPart.y + (part.y - prevPart.y) * (1 - moveProgress);
+                        }
+                    }
+
+                    if (snakeColorMode === 'rainbow') {
+                        ctx.fillStyle = `hsl(${(rainbowHue + index * 15) % 360}, 85%, 55%)`;
+                    } else if (snakeColorMode !== 'normal') {
+                        ctx.fillStyle = snakeColorMode; 
+                    } else {
+                        ctx.fillStyle = index === 0 ? '#8bc34a' : '#4CAF50'; 
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.arc(
+                        renderX * gridSize + gridSize / 2, 
+                        renderY * gridSize + gridSize / 2, 
+                        (gridSize / 2) - 1, 
+                        0, 
+                        2 * Math.PI
+                    );
+                    ctx.fill();
+                });
+            }
+
+            if (isPaused && !isGameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Paused', canvas.width / 2, canvas.height / 2 - 10);
+                
+                ctx.font = '14px sans-serif';
+                ctx.fillText('Press P to Resume', canvas.width / 2, canvas.height / 2 + 20);
+            }
+
+            if (isGameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 10);
+                
+                ctx.font = '14px sans-serif';
+                ctx.fillText('Press an Arrow Key to restart', canvas.width / 2, canvas.height / 2 + 20);
+            }
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
