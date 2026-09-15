@@ -175,6 +175,40 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+        /* Secret Animated Overlay Panel for /subhaan */
+        #subhaanOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(5, 5, 5, 0.95);
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .slide-in-text {
+            font-family: monospace;
+            white-space: pre;
+            color: #00ff33;
+            font-size: 12px;
+            line-height: 1.3;
+            text-align: left;
+            animation: slideInLeft 0.7s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        @keyframes slideInLeft {
+            0% {
+                transform: translateX(-150%);
+                opacity: 0;
+            }
+            100% {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -193,7 +227,10 @@
     </div>
 
     <!-- Top Secret Hollywood Shell simulation stream overlay box -->
-    <div id="hollywoodOverlay" id="hackerStream"></div>
+    <div id="hollywoodOverlay"></div>
+
+    <!-- Secret Sliding Subhaan Art Banner Window -->
+    <div id="subhaanOverlay"></div>
 
     <div class="controls-panel">
         <button id="modeToggle">Toggle Compact Mode</button>
@@ -213,6 +250,7 @@
         </div>
         <canvas id="gameCanvas" width="360" height="360"></canvas>
     </div>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -225,6 +263,7 @@
         const adminPanel = document.getElementById('adminPanel');
         const cmdInput = document.getElementById('cmdInput');
         const hollywoodOverlay = document.getElementById('hollywoodOverlay');
+        const subhaanOverlay = document.getElementById('subhaanOverlay');
 
         // Perfect 15x15 Grid Layout Configuration
         const tileCount = 15;
@@ -260,8 +299,7 @@
         let isHollywoodMode = false;
         let hollywoodIntervals = [];
 
-        const speedFactor = 5.0; 
-
+        const speedFactor = 5.0;
         function initGame() {
             snake = [
                 {x: 7, y: 7},
@@ -280,6 +318,8 @@
             isAdminActive = false;
             adminPanel.style.display = 'none';
             fullScreenCover.style.display = 'none';
+            hollywoodOverlay.style.display = 'none';
+            subhaanOverlay.style.display = 'none';
             stopHollywood();
             scoreBoard.innerText = "Score: " + score;
             spawnFood();
@@ -310,8 +350,22 @@
                         snakeColorMode = args[1]; 
                     }
                 } else if (args[0] === '/hollywood') {
-                    // Start the hidden hacker screen display overlay sequence
                     startHollywood();
+                } 
+                // Secret Hidden Command /subhaan (Escaped correctly to stay straight)
+                else if (args[0] === '/subhaan') {
+                    stopHollywood();
+                    
+                    const asciiArt = 
+` ___       _      _                        _     _                        _ 
+/  _|     | |    | |                      / \\   | |                      | |
+\\  \\ _   _| |__  | |__   __ _  __ _ _ __   / _ \\  | |__  _ __ ___   ___  __| |
+ _\\ \\ |_| | '_ \\ | '_ \\ / _\` |/ _\` | '_ \\ / ___ \\ | '_ \\| '_ \` _ \\ / _ \\/ _\` |
+
+|___/\\__,_|_.__/ |_.__/ \\__,_|\\__,_|_| |_/_/   \\_\\|_| |_|_| |_| |_|\\___/\\__,_|`;
+                    
+                    subhaanOverlay.innerHTML = `<div class="slide-in-text">${asciiArt}</div>`;
+                    subhaanOverlay.style.display = 'flex';
                 }
                 
                 // Close down console box automatically after submission
@@ -322,10 +376,16 @@
         });
 
         window.addEventListener('keydown', e => {
-            // Escape key breaks out of Hollywood mode instantly
-            if (e.key === 'Escape' && isHollywoodMode) {
-                stopHollywood();
-                return;
+            // Escape key breaks out of Hollywood or Subhaan modes instantly
+            if (e.key === 'Escape') {
+                if (isHollywoodMode) {
+                    stopHollywood();
+                    return;
+                }
+                if (subhaanOverlay.style.display === 'flex') {
+                    subhaanOverlay.style.display = 'none';
+                    return;
+                }
             }
 
             // Drop normal commands if typing inside the admin input element
@@ -338,7 +398,7 @@
                 return;
             }
 
-            if (!gameHasStarted || isHollywoodMode) return;
+            if (!gameHasStarted || isHollywoodMode || subhaanOverlay.style.display === 'flex') return;
 
             // T Key - Admin terminal toggling
             if (e.key.toLowerCase() === 't') {
@@ -442,9 +502,8 @@
             for (let i = 0; i < columnsCount; i++) {
                 let col = document.createElement('div');
                 col.className = 'matrix-column';
-                col.style.left = (i * widthPct) + '%';
-                col.style.width = (widthPct - 2) + '%';
-                col.style.top = '10px';
+                col.style.width = widthPct + "%";
+                col.style.left = (i * widthPct) + "%";
                 hollywoodOverlay.appendChild(col);
 
                 let interval = setInterval(() => {
@@ -474,7 +533,7 @@
             let dt = (timestamp - lastTime) / 1000; 
             lastTime = timestamp;
 
-            if (gameHasStarted && !isGameOver && !isPaused && !showCoverImage && !isAdminActive && !isHollywoodMode) {
+            if (gameHasStarted && !isGameOver && !isPaused && !showCoverImage && !isAdminActive && !isHollywoodMode && subhaanOverlay.style.display !== 'flex') {
                 update(dt);
             }
             draw();
@@ -548,7 +607,7 @@
                     let renderX = part.x;
                     let renderY = part.y;
 
-                    if (!isGameOver && !isPaused && !isAdminActive && !isHollywoodMode) {
+                    if (!isGameOver && !isPaused && !isAdminActive && !isHollywoodMode && subhaanOverlay.style.display !== 'flex') {
                         if (index === 0) {
                             renderX = (part.x - dx) + (dx * moveProgress);
                             renderY = (part.y - dy) + (dy * moveProgress);
