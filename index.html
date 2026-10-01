@@ -114,7 +114,6 @@
             margin-bottom: 12px;
             line-height: 1.4;
         }
-        /* Mode and Menu Configurations */
         .menu-section {
             margin-bottom: 12px;
             width: 100%;
@@ -265,13 +264,11 @@
                 <strong>M Key</strong>: Hide Screen | <strong>T Key</strong>: Admin Panel
             </div>
 
-            <!-- New Game Mode Selection Panel Controls -->
             <div class="menu-section">
                 <button id="regBtn" class="mode-btn selected">Regular</button>
                 <button id="chaoticBtn" class="mode-btn">Chaotic</button>
             </div>
 
-            <!-- New Difficulty Select Panel Configuration -->
             <div id="difficultySection" class="menu-section" style="display: none;">
                 <label for="diffSelect" style="font-size: 13px; margin-right: 5px; color: #ffa726;">Difficulty:</label>
                 <select id="diffSelect" class="config-select">
@@ -300,7 +297,6 @@
         const hollywoodOverlay = document.getElementById('hollywoodOverlay');
         const subhaanOverlay = document.getElementById('subhaanOverlay');
 
-        // New Menu Select Hook Elements
         const regBtn = document.getElementById('regBtn');
         const chaoticBtn = document.getElementById('chaoticBtn');
         const difficultySection = document.getElementById('difficultySection');
@@ -325,28 +321,25 @@
         let isGameOver = false;
         let isCompactMode = false;
 
-        // Toggle flags for pausing mechanics
         let isPaused = false;
         let showCoverImage = false;
         let gameHasStarted = false; 
         
-        // Admin system tracking data
         let isAdminActive = false;
         let snakeColorMode = 'normal'; 
         let rainbowHue = 0; 
 
-        // Hidden Hollywood Hacker Mode variables
         let isHollywoodMode = false;
         let hollywoodIntervals = [];
 
-        // New Chaotic Mode State Data Tracking Variables
-        let currentGameMode = 'regular'; // 'regular' or 'chaotic'
-        let selectedDifficulty = 'normal'; // 'easy', 'normal', 'hard'
+        let currentGameMode = 'regular'; 
+        let selectedDifficulty = 'normal'; 
         let bombsArray = [];
-        let bombPulseTime = 0; // Tracks floating math parameters for pulsing graphic visual rendering
+        let explosionsArray = []; 
+        let bombPulseTime = 0; 
 
         const speedFactor = 5.0;
-        // Menu Mode Button Toggles
+        // Menu Mode Button Configuration Toggles
         regBtn.addEventListener('click', () => {
             currentGameMode = 'regular';
             regBtn.classList.add('selected');
@@ -384,14 +377,14 @@
             stopHollywood();
             scoreBoard.innerText = "Score: " + score;
             
-            // Set difficulty from dropdown menu value
             selectedDifficulty = diffSelect.value;
             bombsArray = [];
+            explosionsArray = [];
             bombPulseTime = 0;
 
             spawnFood();
 
-            // Generate initial stage threat hazards if Chaotic engine is active
+            // Set up initial roaming hazards if Chaotic parameters are satisfied
             if (currentGameMode === 'chaotic') {
                 spawnBomb();
                 spawnBomb();
@@ -405,7 +398,7 @@
         });
 
         function spawnBomb() {
-            let fuseSetting = 10.0; // Default fuse timer (Hard)
+            let fuseSetting = 10.0; // Hard difficulty fuse lifecycle
             if (selectedDifficulty === 'easy') fuseSetting = 18.0;
             else if (selectedDifficulty === 'normal') fuseSetting = 14.0;
 
@@ -413,28 +406,30 @@
                 x: Math.floor(Math.random() * tileCount),
                 y: Math.floor(Math.random() * tileCount),
                 fuse: fuseSetting,
-                maxFuse: fuseSetting
+                maxFuse: fuseSetting,
+                moveTimer: 0
             };
 
             // Avoid overlaying onto food coordinates
-            if (newBomb.x === food.x && newBomb.y === food.y) {
-                return spawnBomb();
-            }
-            // Avoid overlaying onto existing body parts
+            if (newBomb.x === food.x && newBomb.y === food.y) return spawnBomb();
+            
+            // Avoid overlaying onto existing snake body segments
             for (let part of snake) {
-                if (part.x === newBomb.x && part.y === newBomb.y) {
-                    return spawnBomb();
-                }
+                if (part.x === newBomb.x && part.y === newBomb.y) return spawnBomb();
             }
-            // Avoid overlaying onto current live structural objects
+            
+            // Upgraded: Anti-clumping safety algorithm checks distance against all active bombs
+            // Retries positioning until the new bomb is at least 5 tiles away from any other bomb
             for (let b of bombsArray) {
-                if (b.x === newBomb.x && b.y === newBomb.y) {
-                    return spawnBomb();
+                let xDist = Math.abs(newBomb.x - b.x);
+                let yDist = Math.abs(newBomb.y - b.y);
+                if (xDist < 5 && yDist < 5) {
+                    return spawnBomb(); // Cancel and re-roll coordinates to spread out
                 }
             }
+            
             bombsArray.push(newBomb);
         }
-
         // Catch input commands on Enter keypress
         cmdInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
@@ -587,7 +582,6 @@
                     break;
                 }
             }
-            // Ensure food doesn't drop directly onto a bomb location
             for (let b of bombsArray) {
                 if (b.x === food.x && b.y === food.y) {
                     spawnFood();
@@ -653,16 +647,62 @@
             requestAnimationFrame(gameLoop);
         }
         function update(dt) {
-            // Update continuous pulsing value for drawing flashing graphics animations
             bombPulseTime += dt * 12;
 
             if (currentGameMode === 'chaotic') {
-                // Countdown the fuse timers for each bomb orb
+                // 1. Process active explosions lifecycle counters
+                for (let i = explosionsArray.length - 1; i >= 0; i--) {
+                    explosionsArray[i].duration -= dt;
+                    if (explosionsArray[i].duration <= 0) {
+                        explosionsArray.splice(i, 1);
+                    }
+                }
+
+                // 2. Process active ticking bombs logic
                 for (let i = bombsArray.length - 1; i >= 0; i--) {
-                    bombsArray[i].fuse -= dt;
-                    
-                    // If a fuse runs completely out, detonate and spawn a new one somewhere else
-                    if (bombsArray[i].fuse <= 0) {
+                    let bomb = bombsArray[i];
+                    bomb.fuse -= dt;
+                    bomb.moveTimer += dt;
+
+                    // Moving Bombs: Adjust position coordinates randomly every 1.5 seconds
+                    if (bomb.moveTimer >= 1.5) {
+                        bomb.moveTimer = 0;
+                        
+                        let directions = [
+                            {x: 0, y: -1}, {x: 0, y: 1}, 
+                            {x: -1, y: 0}, {x: 1, y: 0}
+                        ];
+                        let randomDir = directions[Math.floor(Math.random() * directions.length)];
+                        let newX = bomb.x + randomDir.x;
+                        let newY = bomb.y + randomDir.y;
+
+                        // Verify boundary walls and structural obstacle safety rules
+                        if (newX >= 0 && newX < tileCount && newY >= 0 && newY < tileCount) {
+                            let spaceOccupied = false;
+                            if (newX === food.x && newY === food.y) spaceOccupied = true;
+                            for (let part of snake) {
+                                if (part.x === newX && part.y === newY) spaceOccupied = true;
+                            }
+                            if (!spaceOccupied) {
+                                bomb.x = newX;
+                                bomb.y = newY;
+                            }
+                        }
+                    }
+
+                    // Explosion Blast Radius: Generate explosion cells when fuse counts down
+                    if (bomb.fuse <= 0) {
+                        // Create a cross-shaped blast pattern outward from epicenter block
+                        let radius = 2; 
+                        explosionsArray.push({ x: bomb.x, y: bomb.y, duration: 0.6 }); // Center point
+                        
+                        for (let r = 1; r <= radius; r++) {
+                            if (bomb.x + r < tileCount) explosionsArray.push({ x: bomb.x + r, y: bomb.y, duration: 0.6 });
+                            if (bomb.x - r >= 0)        explosionsArray.push({ x: bomb.x - r, y: bomb.y, duration: 0.6 });
+                            if (bomb.y + r < tileCount) explosionsArray.push({ x: bomb.x, y: bomb.y + r, duration: 0.6 });
+                            if (bomb.y - r >= 0)        explosionsArray.push({ x: bomb.x, y: bomb.y - r, duration: 0.6 });
+                        }
+
                         bombsArray.splice(i, 1);
                         spawnBomb();
                     }
@@ -680,13 +720,11 @@
                 currentX += dx;
                 currentY += dy;
 
-                // Border boundaries wall colliders
                 if (currentX < 0 || currentX >= tileCount || currentY < 0 || currentY >= tileCount) {
                     isGameOver = true;
                     return;
                 }
 
-                // Own structural body collision detector checks
                 for (let i = 0; i < snake.length; i++) {
                     if (snake[i].x === currentX && snake[i].y === currentY) {
                         isGameOver = true;
@@ -694,32 +732,37 @@
                     }
                 }
 
-                // --- NEW CHAOTIC MODE PROXIMITY MECHANICS TRIGGER DETECTORS ---
+                // --- CHAOTIC PROXIMITY AND BLAST COLLISION CHECKS ---
                 if (currentGameMode === 'chaotic') {
-                    for (let bomb of bombsArray) {
-                        let elementsToTest = [];
+                    let elementsToTest = [];
 
-                        if (selectedDifficulty === 'easy') {
-                            // Only check if the HEAD is directly next to or on the bomb tile
-                            elementsToTest.push(snake[0]);
-                        } else if (selectedDifficulty === 'normal') {
-                            // Check the front upper half of the snake segments length allocation
-                            let checkLimit = Math.ceil(snake.length / 2);
-                            for (let idx = 0; idx < checkLimit; idx++) {
-                                elementsToTest.push(snake[idx]);
-                            }
-                        } else if (selectedDifficulty === 'hard') {
-                            // Check the entire length array map structure elements
-                            elementsToTest = [...snake];
+                    if (selectedDifficulty === 'easy') {
+                        elementsToTest.push(snake[0]); // Head position only
+                    } else if (selectedDifficulty === 'normal') {
+                        let checkLimit = Math.ceil(snake.length / 2);
+                        for (let idx = 0; idx < checkLimit; idx++) {
+                            elementsToTest.push(snake[idx]);
                         }
+                    } else if (selectedDifficulty === 'hard') {
+                        elementsToTest = [...snake]; // Entire structural length array
+                    }
 
-                        // Evaluate chosen layout components against threat zones
+                    // Check live active fire grids
+                    for (let blast of explosionsArray) {
+                        for (let segment of elementsToTest) {
+                            if (segment && segment.x === blast.x && segment.y === blast.y) {
+                                isGameOver = true;
+                                return;
+                            }
+                        }
+                    }
+
+                    // Check live proximity threat limits to moving ticking fields
+                    for (let bomb of bombsArray) {
                         for (let segment of elementsToTest) {
                             if (segment) {
                                 let xDist = Math.abs(segment.x - bomb.x);
                                 let yDist = Math.abs(segment.y - bomb.y);
-                                
-                                // Direct neighbor tiles distance evaluation logic (Adjacent threat radius = 1 tile or lower)
                                 if (xDist <= 1 && yDist <= 1) {
                                     isGameOver = true;
                                     return;
@@ -736,7 +779,6 @@
                     scoreBoard.innerText = "Score: " + score;
                     spawnFood();
 
-                    // Progressive addition of active threats inside Chaotic system
                     if (currentGameMode === 'chaotic' && score % 20 === 0) {
                         spawnBomb();
                     }
@@ -745,7 +787,7 @@
                 }
             }
         }
-                function draw() {
+        function draw() {
             ctx.fillStyle = '#111';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -768,16 +810,25 @@
                 ctx.fillStyle = '#ff5722';
                 ctx.fillRect(food.x * gridSize + 2, food.y * gridSize + 2, gridSize - 4, gridSize - 4);
 
-                // --- RENDERING DYNAMIC TICKING BOMB HAZARD DESIGN LAYOUTS ---
+                // --- RENDERING DETONATION FIRE CLOUD CELLS ---
                 if (currentGameMode === 'chaotic') {
+                    ctx.fillStyle = 'rgba(255, 102, 0, 0.75)'; // Bright fiery orange blast layout
+                    explosionsArray.forEach(blast => {
+                        ctx.fillRect(
+                            blast.x * gridSize + 1, 
+                            blast.y * gridSize + 1, 
+                            gridSize - 2, 
+                            gridSize - 2
+                        );
+                    });
+
+                    // Render Roaming Bomb Orbs
                     bombsArray.forEach(bomb => {
                         let fusePercent = bomb.fuse / bomb.maxFuse;
-                        
-                        // Accelerate flashing speed when the fuse drops low
                         let pulseSpeedModifier = fusePercent < 0.35 ? 2.5 : 1.0;
                         let opacityAlphaValue = 0.4 + 0.5 * Math.abs(Math.sin(bombPulseTime * pulseSpeedModifier));
 
-                        // Outer danger detection radius glow arc rendering paths
+                        // Warning radius glow circle path layers
                         ctx.fillStyle = `rgba(211, 47, 47, ${opacityAlphaValue * 0.25})`;
                         ctx.beginPath();
                         ctx.arc(
@@ -789,7 +840,7 @@
                         );
                         ctx.fill();
 
-                        // Core active explosive flashing vector graphics setup
+                        // Main flashing explosive tracking orb vector circle structures
                         ctx.fillStyle = `rgba(255, 23, 68, ${opacityAlphaValue})`;
                         ctx.beginPath();
                         ctx.arc(
@@ -801,7 +852,7 @@
                         );
                         ctx.fill();
 
-                        // Tiny central ticking fuse countdown pip indicator tracking display
+                        // Core timeline countdown reference indicator pip points
                         ctx.fillStyle = '#ffffff';
                         ctx.beginPath();
                         ctx.arc(
