@@ -71,7 +71,6 @@
             margin-top: 8px;
             font-weight: bold;
         }
-        /* Full-screen image overlay styling */
         #fullScreenCover {
             display: none;
             position: fixed;
@@ -87,7 +86,6 @@
             height: 100%;
             object-fit: contain;
         }
-        /* Interactive Menu Overlay for the Start screen */
         #startScreen {
             position: absolute;
             top: 0;
@@ -103,26 +101,56 @@
             justify-content: center;
             z-index: 50;
             text-align: center;
-            padding: 20px;
+            padding: 15px;
         }
         #startScreen h1 {
-            margin: 0 0 10px 0;
+            margin: 0 0 5px 0;
             color: #4CAF50;
-            font-size: 28px;
+            font-size: 26px;
         }
         .controls-list {
-            font-size: 13px;
+            font-size: 12px;
             color: #bbb;
-            margin-bottom: 25px;
-            line-height: 1.6;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        /* Mode and Menu Configurations */
+        .menu-section {
+            margin-bottom: 12px;
+            width: 100%;
+        }
+        .mode-btn {
+            background: #333;
+            border: 2px solid #555;
+            margin: 0 5px;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .mode-btn.selected {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+        .mode-btn.selected#chaoticBtn {
+            background: #d32f2f;
+            border-color: #d32f2f;
+        }
+        .config-select {
+            background: #222;
+            color: white;
+            border: 1px solid #555;
+            padding: 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            outline: none;
+            cursor: pointer;
         }
         #startBtn {
-            font-size: 18px;
-            padding: 12px 30px;
+            font-size: 16px;
+            padding: 10px 25px;
             border-radius: 6px;
             box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+            margin-top: 5px;
         }
-        /* Admin Command Bar overlay styling at the bottom */
         #adminPanel {
             display: none;
             position: fixed;
@@ -152,7 +180,6 @@
             outline: none;
             box-sizing: border-box;
         }
-        /* Secret Fullscreen Hollywood Hacker Console layout */
         #hollywoodOverlay {
             display: none;
             position: fixed;
@@ -161,7 +188,7 @@
             width: 100vw;
             height: 100vh;
             background: #050505;
-            z-index: 99999; /* Higher than everything */
+            z-index: 99999;
             font-family: 'Courier New', Courier, monospace;
             padding: 20px;
             box-sizing: border-box;
@@ -175,7 +202,6 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
-        /* Secret Animated Overlay Panel for /subhaan */
         #subhaanOverlay {
             display: none;
             position: fixed;
@@ -200,14 +226,8 @@
             animation: slideInLeft 0.7s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
         @keyframes slideInLeft {
-            0% {
-                transform: translateX(-150%);
-                opacity: 0;
-            }
-            100% {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            0% { transform: translateX(-150%); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
         }
     </style>
 </head>
@@ -218,7 +238,7 @@
         <img src="coverimage.png" alt="Cover Image">
     </div>
 
-    <!-- Hidden Admin Terminal Interface Box (Kept completely secret from users) -->
+    <!-- Hidden Admin Terminal Interface Box -->
     <div id="adminPanel">
         <div class="command-help">
             <strong>Available Commands:</strong> /points [number] | /colour [color_name or rainbow]
@@ -241,11 +261,26 @@
         <div id="startScreen">
             <h1>SNAKE GAME</h1>
             <div class="controls-list">
-                <strong>Arrow Keys</strong>: Move Snake<br>
-                <strong>P Key</strong>: Pause Game<br>
-                <strong>M Key</strong>: Hide Screen View<br>
-                <strong>T Key</strong>: Open Admin Panel
+                <strong>Arrow Keys</strong>: Move Snake | <strong>P Key</strong>: Pause<br>
+                <strong>M Key</strong>: Hide Screen | <strong>T Key</strong>: Admin Panel
             </div>
+
+            <!-- New Game Mode Selection Panel Controls -->
+            <div class="menu-section">
+                <button id="regBtn" class="mode-btn selected">Regular</button>
+                <button id="chaoticBtn" class="mode-btn">Chaotic</button>
+            </div>
+
+            <!-- New Difficulty Select Panel Configuration -->
+            <div id="difficultySection" class="menu-section" style="display: none;">
+                <label for="diffSelect" style="font-size: 13px; margin-right: 5px; color: #ffa726;">Difficulty:</label>
+                <select id="diffSelect" class="config-select">
+                    <option value="easy">Easy (Head Only)</option>
+                    <option value="normal" selected>Normal (Upper Half)</option>
+                    <option value="hard">Hard (Entire Body)</option>
+                </select>
+            </div>
+
             <button id="startBtn">START</button>
         </div>
         <canvas id="gameCanvas" width="360" height="360"></canvas>
@@ -265,10 +300,15 @@
         const hollywoodOverlay = document.getElementById('hollywoodOverlay');
         const subhaanOverlay = document.getElementById('subhaanOverlay');
 
-        // Perfect 15x15 Grid Layout Configuration
-        const tileCount = 15;
-        const gridSize = canvas.width / tileCount; 
-        
+        // New Menu Select Hook Elements
+        const regBtn = document.getElementById('regBtn');
+        const chaoticBtn = document.getElementById('chaoticBtn');
+        const difficultySection = document.getElementById('difficultySection');
+        const diffSelect = document.getElementById('diffSelect');
+
+        const gridSize = 18;  
+        const tileCount = 20; 
+
         let snake = [];
         let food = {x: 4, y: 7};
         
@@ -299,7 +339,28 @@
         let isHollywoodMode = false;
         let hollywoodIntervals = [];
 
+        // New Chaotic Mode State Data Tracking Variables
+        let currentGameMode = 'regular'; // 'regular' or 'chaotic'
+        let selectedDifficulty = 'normal'; // 'easy', 'normal', 'hard'
+        let bombsArray = [];
+        let bombPulseTime = 0; // Tracks floating math parameters for pulsing graphic visual rendering
+
         const speedFactor = 5.0;
+        // Menu Mode Button Toggles
+        regBtn.addEventListener('click', () => {
+            currentGameMode = 'regular';
+            regBtn.classList.add('selected');
+            chaoticBtn.classList.remove('selected');
+            difficultySection.style.display = 'none';
+        });
+
+        chaoticBtn.addEventListener('click', () => {
+            currentGameMode = 'chaotic';
+            chaoticBtn.classList.add('selected');
+            regBtn.classList.remove('selected');
+            difficultySection.style.display = 'block';
+        });
+
         function initGame() {
             snake = [
                 {x: 7, y: 7},
@@ -322,7 +383,19 @@
             subhaanOverlay.style.display = 'none';
             stopHollywood();
             scoreBoard.innerText = "Score: " + score;
+            
+            // Set difficulty from dropdown menu value
+            selectedDifficulty = diffSelect.value;
+            bombsArray = [];
+            bombPulseTime = 0;
+
             spawnFood();
+
+            // Generate initial stage threat hazards if Chaotic engine is active
+            if (currentGameMode === 'chaotic') {
+                spawnBomb();
+                spawnBomb();
+            }
         }
 
         startBtn.addEventListener('click', () => {
@@ -331,7 +404,38 @@
             initGame();
         });
 
-        // Event listener to catch your input commands on Enter keypress
+        function spawnBomb() {
+            let fuseSetting = 10.0; // Default fuse timer (Hard)
+            if (selectedDifficulty === 'easy') fuseSetting = 18.0;
+            else if (selectedDifficulty === 'normal') fuseSetting = 14.0;
+
+            let newBomb = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount),
+                fuse: fuseSetting,
+                maxFuse: fuseSetting
+            };
+
+            // Avoid overlaying onto food coordinates
+            if (newBomb.x === food.x && newBomb.y === food.y) {
+                return spawnBomb();
+            }
+            // Avoid overlaying onto existing body parts
+            for (let part of snake) {
+                if (part.x === newBomb.x && part.y === newBomb.y) {
+                    return spawnBomb();
+                }
+            }
+            // Avoid overlaying onto current live structural objects
+            for (let b of bombsArray) {
+                if (b.x === newBomb.x && b.y === newBomb.y) {
+                    return spawnBomb();
+                }
+            }
+            bombsArray.push(newBomb);
+        }
+
+        // Catch input commands on Enter keypress
         cmdInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 let input = cmdInput.value.trim().toLowerCase();
@@ -339,9 +443,20 @@
                 
                 if (args[0] === '/points' && args[1] !== undefined) {
                     let newPoints = parseInt(args[1]);
-                    if (!isNaN(newPoints)) {
+                    if (!isNaN(newPoints) && newPoints >= 0) {
                         score = newPoints;
                         scoreBoard.innerText = "Score: " + score;
+
+                        let targetLength = 3 + Math.floor(score / 10);
+                        if (targetLength < 1) targetLength = 1;
+
+                        while (snake.length < targetLength) {
+                            let tail = snake[snake.length - 1] || { x: currentX, y: currentY };
+                            snake.push({ x: tail.x, y: tail.y });
+                        }
+                        while (snake.length > targetLength) {
+                            snake.pop();
+                        }
                     }
                 } else if (args[0] === '/colour' && args[1] !== undefined) {
                     if (args[1] === 'rainbow') {
@@ -352,7 +467,6 @@
                 } else if (args[0] === '/hollywood') {
                     startHollywood();
                 } 
-                // Secret Hidden Command /subhaan (Escaped correctly to stay straight)
                 else if (args[0] === '/subhaan') {
                     stopHollywood();
                     
@@ -368,7 +482,6 @@
                     subhaanOverlay.style.display = 'flex';
                 }
                 
-                // Close down console box automatically after submission
                 isAdminActive = false;
                 adminPanel.style.display = 'none';
                 cmdInput.blur();
@@ -376,7 +489,6 @@
         });
 
         window.addEventListener('keydown', e => {
-            // Escape key breaks out of Hollywood or Subhaan modes instantly
             if (e.key === 'Escape') {
                 if (isHollywoodMode) {
                     stopHollywood();
@@ -388,7 +500,6 @@
                 }
             }
 
-            // Drop normal commands if typing inside the admin input element
             if (document.activeElement === cmdInput) {
                 if (e.key === 'Escape') {
                     isAdminActive = false;
@@ -400,7 +511,6 @@
 
             if (!gameHasStarted || isHollywoodMode || subhaanOverlay.style.display === 'flex') return;
 
-            // T Key - Admin terminal toggling
             if (e.key.toLowerCase() === 't') {
                 e.preventDefault();
                 isAdminActive = !isAdminActive;
@@ -415,7 +525,6 @@
                 return;
             }
 
-            // P Key - Standard Pause Menu toggle
             if (e.key.toLowerCase() === 'p') {
                 if (!showCoverImage && !isGameOver && !isAdminActive) {
                     isPaused = !isPaused;
@@ -423,7 +532,6 @@
                 return;
             }
 
-            // M Key - Custom Image View pause toggle
             if (e.key.toLowerCase() === 'm') {
                 if (!isGameOver && !isAdminActive) {
                     showCoverImage = !showCoverImage;
@@ -432,7 +540,6 @@
                 }
                 return;
             }
-
             // Game movement inputs (only allowed if game is completely active)
             if (!isPaused && !showCoverImage && !isAdminActive) {
                 switch(e.key) {
@@ -456,6 +563,7 @@
                 if(isGameOver) initGame();
             }
         });
+
         modeToggle.addEventListener('click', () => {
             isCompactMode = !isCompactMode;
             if (isCompactMode) {
@@ -479,13 +587,19 @@
                     break;
                 }
             }
+            // Ensure food doesn't drop directly onto a bomb location
+            for (let b of bombsArray) {
+                if (b.x === food.x && b.y === food.y) {
+                    spawnFood();
+                    break;
+                }
+            }
         }
 
-        // Secret Movie Hacker Logic Simulation Engine
         function startHollywood() {
             isHollywoodMode = true;
             hollywoodOverlay.style.display = 'block';
-            hollywoodOverlay.innerHTML = ''; // Clear older screens
+            hollywoodOverlay.innerHTML = ''; 
 
             const columnsCount = Math.floor(window.innerWidth / 300) || 1;
             const widthPct = 100 / columnsCount;
@@ -498,7 +612,6 @@
                 () => `inject --payload=stack_pivot --target=0x7FFF${Math.floor(Math.random()*900+100)}\n[WARNING] MEMORY ADDRESS ALIGNMENT STABLE\n`
             ];
 
-            // Build dynamic text column targets
             for (let i = 0; i < columnsCount; i++) {
                 let col = document.createElement('div');
                 col.className = 'matrix-column';
@@ -510,7 +623,6 @@
                     let randomLine = fakeScripts[Math.floor(Math.random() * fakeScripts.length)]();
                     col.innerHTML += randomLine;
                     
-                    // Keep text layout moving upward when it overflows height dimensions
                     if (col.offsetHeight > window.innerHeight - 50) {
                         col.innerHTML = col.innerHTML.substring(randomLine.length * 2);
                     }
@@ -540,8 +652,23 @@
 
             requestAnimationFrame(gameLoop);
         }
-
         function update(dt) {
+            // Update continuous pulsing value for drawing flashing graphics animations
+            bombPulseTime += dt * 12;
+
+            if (currentGameMode === 'chaotic') {
+                // Countdown the fuse timers for each bomb orb
+                for (let i = bombsArray.length - 1; i >= 0; i--) {
+                    bombsArray[i].fuse -= dt;
+                    
+                    // If a fuse runs completely out, detonate and spawn a new one somewhere else
+                    if (bombsArray[i].fuse <= 0) {
+                        bombsArray.splice(i, 1);
+                        spawnBomb();
+                    }
+                }
+            }
+
             moveProgress += dt * speedFactor;
 
             if (moveProgress >= 1.0) {
@@ -553,15 +680,52 @@
                 currentX += dx;
                 currentY += dy;
 
+                // Border boundaries wall colliders
                 if (currentX < 0 || currentX >= tileCount || currentY < 0 || currentY >= tileCount) {
                     isGameOver = true;
                     return;
                 }
 
+                // Own structural body collision detector checks
                 for (let i = 0; i < snake.length; i++) {
                     if (snake[i].x === currentX && snake[i].y === currentY) {
                         isGameOver = true;
                         return;
+                    }
+                }
+
+                // --- NEW CHAOTIC MODE PROXIMITY MECHANICS TRIGGER DETECTORS ---
+                if (currentGameMode === 'chaotic') {
+                    for (let bomb of bombsArray) {
+                        let elementsToTest = [];
+
+                        if (selectedDifficulty === 'easy') {
+                            // Only check if the HEAD is directly next to or on the bomb tile
+                            elementsToTest.push(snake[0]);
+                        } else if (selectedDifficulty === 'normal') {
+                            // Check the front upper half of the snake segments length allocation
+                            let checkLimit = Math.ceil(snake.length / 2);
+                            for (let idx = 0; idx < checkLimit; idx++) {
+                                elementsToTest.push(snake[idx]);
+                            }
+                        } else if (selectedDifficulty === 'hard') {
+                            // Check the entire length array map structure elements
+                            elementsToTest = [...snake];
+                        }
+
+                        // Evaluate chosen layout components against threat zones
+                        for (let segment of elementsToTest) {
+                            if (segment) {
+                                let xDist = Math.abs(segment.x - bomb.x);
+                                let yDist = Math.abs(segment.y - bomb.y);
+                                
+                                // Direct neighbor tiles distance evaluation logic (Adjacent threat radius = 1 tile or lower)
+                                if (xDist <= 1 && yDist <= 1) {
+                                    isGameOver = true;
+                                    return;
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -571,13 +735,17 @@
                     score += 10;
                     scoreBoard.innerText = "Score: " + score;
                     spawnFood();
+
+                    // Progressive addition of active threats inside Chaotic system
+                    if (currentGameMode === 'chaotic' && score % 20 === 0) {
+                        spawnBomb();
+                    }
                 } else {
                     snake.pop();
                 }
             }
         }
-
-        function draw() {
+                function draw() {
             ctx.fillStyle = '#111';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -596,8 +764,56 @@
             }
 
             if (gameHasStarted) {
+                // Render Point Orbs
                 ctx.fillStyle = '#ff5722';
                 ctx.fillRect(food.x * gridSize + 2, food.y * gridSize + 2, gridSize - 4, gridSize - 4);
+
+                // --- RENDERING DYNAMIC TICKING BOMB HAZARD DESIGN LAYOUTS ---
+                if (currentGameMode === 'chaotic') {
+                    bombsArray.forEach(bomb => {
+                        let fusePercent = bomb.fuse / bomb.maxFuse;
+                        
+                        // Accelerate flashing speed when the fuse drops low
+                        let pulseSpeedModifier = fusePercent < 0.35 ? 2.5 : 1.0;
+                        let opacityAlphaValue = 0.4 + 0.5 * Math.abs(Math.sin(bombPulseTime * pulseSpeedModifier));
+
+                        // Outer danger detection radius glow arc rendering paths
+                        ctx.fillStyle = `rgba(211, 47, 47, ${opacityAlphaValue * 0.25})`;
+                        ctx.beginPath();
+                        ctx.arc(
+                            bomb.x * gridSize + gridSize / 2,
+                            bomb.y * gridSize + gridSize / 2,
+                            gridSize * 1.5,
+                            0,
+                            2 * Math.PI
+                        );
+                        ctx.fill();
+
+                        // Core active explosive flashing vector graphics setup
+                        ctx.fillStyle = `rgba(255, 23, 68, ${opacityAlphaValue})`;
+                        ctx.beginPath();
+                        ctx.arc(
+                            bomb.x * gridSize + gridSize / 2,
+                            bomb.y * gridSize + gridSize / 2,
+                            (gridSize / 2) - 1,
+                            0,
+                            2 * Math.PI
+                        );
+                        ctx.fill();
+
+                        // Tiny central ticking fuse countdown pip indicator tracking display
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.arc(
+                            bomb.x * gridSize + gridSize / 2,
+                            bomb.y * gridSize + gridSize / 2,
+                            2,
+                            0,
+                            2 * Math.PI
+                        );
+                        ctx.fill();
+                    });
+                }
 
                 if (snakeColorMode === 'rainbow') {
                     rainbowHue = (rainbowHue + 2) % 360;
@@ -607,15 +823,18 @@
                     let renderX = part.x;
                     let renderY = part.y;
 
-                    if (!isGameOver && !isPaused && !isAdminActive && !isHollywoodMode && subhaanOverlay.style.display !== 'flex') {
-                        if (index === 0) {
-                            renderX = (part.x - dx) + (dx * moveProgress);
-                            renderY = (part.y - dy) + (dy * moveProgress);
-                        } else {
-                            let prevPart = snake[index - 1];
-                            renderX = prevPart.x + (part.x - prevPart.x) * (1 - moveProgress);
-                            renderY = prevPart.y + (part.y - prevPart.y) * (1 - moveProgress);
-                        }
+                    let effectiveProgress = moveProgress;
+                    if (isPaused || isAdminActive || isHollywoodMode || subhaanOverlay.style.display === 'flex' || isGameOver) {
+                        effectiveProgress = 0; 
+                    }
+
+                    if (index === 0) {
+                        renderX = (part.x - dx) + (dx * effectiveProgress);
+                        renderY = (part.y - dy) + (dy * effectiveProgress);
+                    } else {
+                        let prevPart = snake[index - 1];
+                        renderX = prevPart.x + (part.x - prevPart.x) * (1 - effectiveProgress);
+                        renderY = prevPart.y + (part.y - prevPart.y) * (1 - effectiveProgress);
                     }
 
                     if (snakeColorMode === 'rainbow') {
